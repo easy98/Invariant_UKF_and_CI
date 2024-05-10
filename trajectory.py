@@ -3,16 +3,20 @@ import matplotlib.pyplot as plt
 
 
 class Trajectory:
-    def __init__(self, total_steps=1000, axis_length=0.5):
+    def __init__(self, total_steps=1000, axis_length=0.5, dt = .01):
         self.total_steps = total_steps
         self.axis_length = axis_length
+        self.dt = dt
         self.x = np.zeros(self.total_steps)
         self.y = np.zeros(self.total_steps)
         self.z = np.zeros(self.total_steps)
         self.roll = np.zeros(self.total_steps)
         self.pitch = np.zeros(self.total_steps)
         self.yaw = np.zeros(self.total_steps)
+
         self.generate_trajectory()
+        self.position = np.array([self.x, self.y, self.z]) 
+        self.oriantation = np.array([self.roll, self.pitch, self.yaw]) 
 
     def generate_trajectory(self):
         # First 400 steps: Spiral
@@ -23,7 +27,7 @@ class Trajectory:
         self.y[:400] = r1 * np.sin(t1)
         self.yaw[:400] = t1 % (2*np.pi)
 
-        # Next 600 steps: Infinity shape at constant height z = 8
+        # Next 600 steps: infinity shape at constant height z = 8
         t2 = np.linspace(0, 12 * np.pi, 600)
         self.x[400:] = 3 * np.sin(t2)
         self.y[400:] = 3 * np.sin(t2) * np.cos(t2)
@@ -33,5 +37,19 @@ class Trajectory:
         self.roll[400:] = np.linspace(0, 2 * np.pi, 600)
         self.pitch[400:] = np.linspace(2 * np.pi, 0, 600)
 
-traj = Trajectory()
-print(traj.x)
+    def calculate_angular_velocity(self):
+        omega_roll = np.gradient(self.roll, self.dt)
+        omega_pitch = np.gradient(self.pitch, self.dt)
+        omega_yaw = np.gradient(self.yaw, self.dt)
+        return np.array([omega_roll, omega_pitch, omega_yaw])
+
+    def calculate_linear_acceleration(self):
+        velocity = np.gradient(self.position, axis=1, edge_order=2) / self.dt
+        acceleration = np.gradient(velocity, axis=1, edge_order=2) / self.dt
+        return acceleration
+
+# Example usage
+trajectory = Trajectory()
+angular_velocity = trajectory.calculate_angular_velocity()
+linear_acceleration = trajectory.calculate_linear_acceleration()
+print(angular_velocity.shape)

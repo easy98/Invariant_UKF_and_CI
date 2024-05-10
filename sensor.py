@@ -9,7 +9,7 @@ class SensorNode:
         self.p = np.asarray([self.x, self.y, self.z])
         self.size = .2
         
-class Sensor:
+class Sensors:
     def __init__(self):
         sensor_network = []
         sx = [5, 5, -5, -5]
