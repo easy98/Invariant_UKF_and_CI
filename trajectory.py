@@ -32,7 +32,6 @@ class Trajectory:
         
         self.roll[400:] = np.linspace(0, 2 * np.pi, 600)
         self.pitch[400:] = np.linspace(2 * np.pi, 0, 600)
-        return self.x, self.y, self.z, self.roll, self.pitch, self.yaw
 
 traj = Trajectory()
-print(traj.generate_trajectory())
+print(traj.x)
