@@ -3,10 +3,13 @@ import matplotlib.pyplot as plt
 
 
 class Trajectory:
-    def __init__(self, total_steps=1000, axis_length=0.5, dt = .01):
+    def __init__(self, total_steps=1000, axis_length=0.5, dt = .01, noise_is_gaussian = True, std_dev = .02):
         self.total_steps = total_steps
         self.axis_length = axis_length
         self.dt = dt
+        self.noise_is_gaussian = noise_is_gaussian
+        self.std_dev = std_dev 
+        
         self.x = np.zeros(self.total_steps)
         self.y = np.zeros(self.total_steps)
         self.z = np.zeros(self.total_steps)
@@ -15,8 +18,11 @@ class Trajectory:
         self.yaw = np.zeros(self.total_steps)
 
         self.generate_trajectory()
-        self.position = np.array([self.x, self.y, self.z]) 
-        self.oriantation = np.array([self.roll, self.pitch, self.yaw]) 
+        self.position = np.array([self.x, self.y, self.z])
+        self.orientation = np.array([self.roll, self.pitch, self.yaw])
+        self.imu_angular_velocity = self.calculate_linear_acceleration()
+        self.imu_linear_acceleration = self.calculate_angular_velocity()
+        self.add_noise()
 
     def generate_trajectory(self):
         # First 400 steps: Spiral
@@ -46,10 +52,18 @@ class Trajectory:
     def calculate_linear_acceleration(self):
         velocity = np.gradient(self.position, axis=1, edge_order=2) / self.dt
         acceleration = np.gradient(velocity, axis=1, edge_order=2) / self.dt
+        acceleration[2] -= 9.81
         return acceleration
+    
+    def add_noise(self):
+        if self.noise_is_gaussian:
+            self.imu_linear_acceleration += np.random.normal(0, self.std_dev, self.imu_linear_acceleration.shape)
+            self.imu_angular_velocity += np.random.normal(0, self.std_dev, self.imu_angular_velocity.shape)
+        else:
+            self.imu_linear_acceleration += np.random.uniform(-self.std_dev, self.std_dev, self.imu_linear_acceleration.shape)
+            self.imu_angular_velocity += np.random.uniform(-self.std_dev, self.std_dev, self.imu_angular_velocity.shape)
+
 
 # Example usage
 trajectory = Trajectory()
-angular_velocity = trajectory.calculate_angular_velocity()
-linear_acceleration = trajectory.calculate_linear_acceleration()
-print(angular_velocity.shape)
+print(trajectory.imu_angular_velocity.shape)
