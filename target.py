@@ -6,7 +6,7 @@ class Target:
     def __init__(self):
         self.trajectory = Trajectory()
         self.sensors = Sensors()
-        self.R = self.rotation_matrix(self.roll, self.pitch, self.yaw)
+        self.R = self.rotation_matrix(self.trajectory.roll, self.trajectory.pitch, self.trajectory.yaw)
         self.w, self.a = self.imu_propagation()
     
     def imu_propagation():
