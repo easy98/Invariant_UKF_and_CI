@@ -20,8 +20,9 @@ class Trajectory:
         self.generate_trajectory()
         self.position = np.array([self.x, self.y, self.z])
         self.orientation = np.array([self.roll, self.pitch, self.yaw])
-        self.imu_angular_velocity = self.calculate_linear_acceleration()
-        self.imu_linear_acceleration = self.calculate_angular_velocity()
+        self.R = self.rotation_matrix(self.trajectory.roll, self.trajectory.pitch, self.trajectory.yaw)
+        self.imu_angular_velocity = self.calculate_linear_acceleration() @ self.R # global to local
+        self.imu_linear_acceleration = self.calculate_angular_velocity() @ self.R # global to local
         self.add_noise()
 
     def generate_trajectory(self):
@@ -63,7 +64,12 @@ class Trajectory:
             self.imu_linear_acceleration += np.random.uniform(-self.std_dev, self.std_dev, self.imu_linear_acceleration.shape)
             self.imu_angular_velocity += np.random.uniform(-self.std_dev, self.std_dev, self.imu_angular_velocity.shape)
 
-
+    def rotation_matrix(self, roll, pitch, yaw):
+        Rx = np.array([[np.cos(roll), -np.sin(roll), 0], [np.sin(roll), np.cos(roll), 0], [0, 0, 1]])
+        Ry = np.array([[np.cos(pitch), -np.sin(pitch), 0], [np.sin(pitch), np.cos(pitch), 0], [0, 0, 1]])
+        Rz = np.array([[np.cos(yaw), -np.sin(yaw), 0], [np.sin(yaw), np.cos(yaw), 0], [0, 0, 1]])
+        return Rx @ Ry @ Rz
+    
 # Example usage
 trajectory = Trajectory()
 print(trajectory.imu_angular_velocity.shape)
