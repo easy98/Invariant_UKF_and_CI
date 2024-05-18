@@ -10,24 +10,6 @@ class Trajectory:
         self.noise_is_gaussian = noise_is_gaussian
         self.std_dev = std_dev 
         
-        # self.waypoints1 = np.array([
-        #     (4.245, 1.332, .312, .158, .123, .098),
-        #     (4.374, 1.521, 2.432, .446, .379, .765),
-        #     (3.987, 2.137, 3.576, .367, .459, 1.258),
-        #     (5.023, 2.462, 4.184, .573, .224, 1.783),
-        #     (5.483, 3.479, 4.940, .532, .415, 1.662),
-        #     (6.327, 4.579, 5.872, .724, .471, 1.288),
-        #     (6.589, 5.824, 7.012, .581, .347, .916),
-        #     (7.036, 6.924, 7.318, .293, .328, .473)
-        # ])
-
-        # self.current_trajectory = self.create_trajectory(self.waypoints1,10,total_steps)
-        # self.x = self.current_trajectory[:, 0]
-        # self.y = self.current_trajectory[:, 1]
-        # self.z = self.current_trajectory[:, 2]
-        # self.roll = self.current_trajectory[:, 3]
-        # self.pitch = self.current_trajectory[:, 4]
-        # self.yaw = self.current_trajectory[:, 5]
         self.x = np.zeros(self.total_steps)
         self.y = np.zeros(self.total_steps)
         self.z = np.zeros(self.total_steps)
@@ -39,27 +21,14 @@ class Trajectory:
         
         self.position = np.array([self.x, self.y, self.z])
         self.orientation = np.array([self.roll, self.pitch, self.yaw])
-        # self.R = self.rotation_matrix(roll=self.roll, pitch=self.pitch, yaw=self.yaw)
-        self.imu_angular_velocity = self.calculate_linear_acceleration() #@ self.R # global to local
-        self.imu_linear_acceleration = self.calculate_angular_velocity() #@ self.R # global to local
-        self.add_noise()
-    
-    # def create_trajectory(self, waypoints, duration, frequency):
-    #     # Calculate the number of points in the trajectory
-    #     total_points = duration * frequency + 1  # +1 to include the endpoint
+        self.rot_mat = self.rotation_matrix(roll=self.roll, pitch=self.pitch, yaw=self.yaw)
+        self.imu_angular_velocity_g = self.calculate_angular_velocity() 
+        self.imu_angular_velocity_l = np.zeros(self.imu_angular_velocity_g.shape)
+        self.imu_linear_acceleration_g = self.calculate_linear_acceleration() 
+        self.imu_linear_acceleration_l = np.zeros(self.imu_linear_acceleration_g.shape)
         
-    #     times = np.linspace(0, duration, num=total_points)
-        
-    #     # Interpolate for each dimension independently
-    #     self.x = np.interp(times, np.linspace(0, duration, num=len(waypoints)), waypoints[:, 0])
-    #     self.y = np.interp(times, np.linspace(0, duration, num=len(waypoints)), waypoints[:, 1])
-    #     self.z = np.interp(times, np.linspace(0, duration, num=len(waypoints)), waypoints[:, 2])
-        
-    #     self.roll = np.interp(times, np.linspace(0, duration, num=len(waypoints)), waypoints[:, 3])
-    #     self.pitch = np.interp(times, np.linspace(0, duration, num=len(waypoints)), waypoints[:, 4])
-    #     self.yaw = np.interp(times, np.linspace(0, duration, num=len(waypoints)), waypoints[:, 5])
-    
-    #     return np.column_stack((self.x, self.y, self.z, self.roll, self.pitch, self.yaw))
+        # self.add_noise()
+        self.imu_global_to_local()
 
     def generate_trajectory(self):
         time = np.linspace(0, 10, 10000)  # Total time of 10 seconds
@@ -82,35 +51,42 @@ class Trajectory:
 
     def calculate_linear_acceleration(self):
         velocity = np.gradient(self.position, axis=1, edge_order=2) / self.dt
+        print(velocity)
         acceleration = np.gradient(velocity, axis=1, edge_order=2) / self.dt
-        acceleration[2] -= 9.81
+        acceleration[2,:] -= 9.81
         return acceleration
     
     def rotation_matrix(self, roll, pitch, yaw):
-        Rx = np.array([[1, 0, 0],
-                    [0, np.cos(roll), -np.sin(roll)],
-                    [0, np.sin(roll), np.cos(roll)]])
-        
-        Ry = np.array([[np.cos(pitch), 0, np.sin(pitch)],
-                    [0, 1, 0],
-                    [-np.sin(pitch), 0, np.cos(pitch)]])
-        
-        Rz = np.array([[np.cos(yaw), -np.sin(yaw), 0],
-                    [np.sin(yaw), np.cos(yaw), 0],
-                    [0, 0, 1]])
-        
-        return Rz @ Ry @ Rx
+        R_ls = []
+        for i in range(self.total_steps):
+            Rx = np.array([[1, 0, 0],
+                            [0, np.cos(self.roll[i]), -np.sin(self.roll[i])],
+                            [0, np.sin(self.roll[i]), np.cos(self.roll[i])]])
+
+            Ry = np.array([[np.cos(self.pitch[i]), 0, np.sin(self.pitch[i])],
+                            [0, 1, 0],
+                            [-np.sin(self.pitch[i]), 0, np.cos(self.pitch[i])]])
+
+            Rz = np.array([[np.cos(self.yaw[i]), -np.sin(self.yaw[i]), 0],
+                            [np.sin(self.yaw[i]), np.cos(self.yaw[i]), 0],
+                            [0, 0, 1]])
+            R_ls.append(Rz @ Ry @ Rx)
+        return np.array(R_ls)
     
+    def imu_global_to_local(self):
+        for i in range (self.total_steps):
+            self.imu_angular_velocity_l[:,i] = self.imu_angular_velocity_g[:,i] @ self.rot_mat[i,:,:]
+            self.imu_linear_acceleration_l[:,i] = self.imu_linear_acceleration_g[:,i] @ self.rot_mat[i,:,:]
+            
     def add_noise(self):
         if self.noise_is_gaussian:
-            self.imu_linear_acceleration += np.random.normal(0, self.std_dev, self.imu_linear_acceleration.shape)
-            self.imu_angular_velocity += np.random.normal(0, self.std_dev, self.imu_angular_velocity.shape)
+            self.imu_angular_velocity_g += np.random.normal(0, self.std_dev, self.imu_angular_velocity_g.shape)
+            self.imu_linear_acceleration_g += np.random.normal(0, self.std_dev, self.imu_linear_acceleration_g.shape)
         else:
-            self.imu_linear_acceleration += np.random.uniform(-self.std_dev, self.std_dev, self.imu_linear_acceleration.shape)
-            self.imu_angular_velocity += np.random.uniform(-self.std_dev, self.std_dev, self.imu_angular_velocity.shape)
+            self.imu_angular_velocity_g += np.random.uniform(-self.std_dev, self.std_dev, self.imu_angular_velocity_g.shape)
+            self.imu_linear_acceleration_g += np.random.uniform(-self.std_dev, self.std_dev, self.imu_linear_acceleration_g.shape)
 
     
     
 # Example usage
 trajectory = Trajectory()
-print(trajectory.imu_angular_velocity.shape)
