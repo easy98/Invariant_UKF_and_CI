@@ -44,10 +44,20 @@ class Trajectory:
         self.pitch[4000:] = np.linspace(np.pi/4, 0, 6000)
 
     def calculate_angular_velocity(self):
-        omega_roll = np.gradient(self.roll, self.dt)
-        omega_pitch = np.gradient(self.pitch, self.dt)
-        omega_yaw = np.gradient(self.yaw, self.dt)
-        return np.array([omega_roll, omega_pitch, omega_yaw])
+        dr = np.diff(self.roll)/self.dt
+        dp = np.diff(self.pitch)/self.dt
+        dy = np.diff(self.yaw)/self.dt
+
+        dr = np.append(dr, dr[-1])
+        dp = np.append(dp, dp[-1])
+        dy = np.append(dy, dy[-1])
+
+        wx = dr
+        wy = np.cos(self.roll)*dp - np.sin(self.roll)*np.cos(self.pitch)*dy
+        wz = np.sin(self.roll)*dp + np.cos(self.roll)*np.cos(self.pitch)*dy
+
+        angular_velocity_matrix = np.vstack([wx, wy, wz])
+        return angular_velocity_matrix
 
     def calculate_linear_acceleration(self):
         velocity = np.gradient(self.position, axis=1, edge_order=2) / self.dt
