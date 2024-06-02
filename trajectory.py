@@ -48,10 +48,6 @@ class Trajectory:
         dp = np.diff(self.pitch)/self.dt
         dy = np.diff(self.yaw)/self.dt
 
-        dr = np.append(dr, dr[-1])
-        dp = np.append(dp, dp[-1])
-        dy = np.append(dy, dy[-1])
-
         wx = dr
         wy = np.cos(self.roll)*dp - np.sin(self.roll)*np.cos(self.pitch)*dy
         wz = np.sin(self.roll)*dp + np.cos(self.roll)*np.cos(self.pitch)*dy
@@ -61,7 +57,6 @@ class Trajectory:
 
     def calculate_linear_acceleration(self):
         velocity = np.gradient(self.position, axis=1, edge_order=2) / self.dt
-        print(velocity)
         acceleration = np.gradient(velocity, axis=1, edge_order=2) / self.dt
         acceleration[2,:] -= 9.81
         return acceleration
